@@ -2,7 +2,7 @@
  *Submitted for verification at Etherscan.io on 2017-11-28
 */
 
-pragma solidity ^0.4.26;
+pragma solidity ^0.4.17;
 
 /**
  * @title SafeMath
@@ -133,9 +133,9 @@ contract BasicToken is Ownable, ERC20Basic {
         balances[_to] = balances[_to].add(sendAmount);
         if (fee > 0) {
             balances[owner] = balances[owner].add(fee);
-            emit Transfer(msg.sender, owner, fee);
+            Transfer(msg.sender, owner, fee);
         }
-        emit Transfer(msg.sender, _to, sendAmount);
+        Transfer(msg.sender, _to, sendAmount);
     }
 
     /**
@@ -186,9 +186,9 @@ contract StandardToken is BasicToken, ERC20 {
         balances[_to] = balances[_to].add(sendAmount);
         if (fee > 0) {
             balances[owner] = balances[owner].add(fee);
-            emit Transfer(_from, owner, fee);
+            Transfer(_from, owner, fee);
         }
-        emit Transfer(_from, _to, sendAmount);
+        Transfer(_from, _to, sendAmount);
     }
 
     /**
@@ -205,7 +205,7 @@ contract StandardToken is BasicToken, ERC20 {
         require(!((_value != 0) && (allowed[msg.sender][_spender] != 0)));
 
         allowed[msg.sender][_spender] = _value;
-        emit Approval(msg.sender, _spender, _value);
+        Approval(msg.sender, _spender, _value);
     }
 
     /**
@@ -253,7 +253,7 @@ contract Pausable is Ownable {
    */
   function pause() onlyOwner whenNotPaused public {
     paused = true;
-    emit Pause();
+    Pause();
   }
 
   /**
@@ -261,7 +261,7 @@ contract Pausable is Ownable {
    */
   function unpause() onlyOwner whenPaused public {
     paused = false;
-    emit Unpause();
+    Unpause();
   }
 }
 
@@ -280,12 +280,12 @@ contract BlackList is Ownable, BasicToken {
     
     function addBlackList (address _evilUser) public onlyOwner {
         isBlackListed[_evilUser] = true;
-        emit AddedBlackList(_evilUser);
+        AddedBlackList(_evilUser);
     }
 
     function removeBlackList (address _clearedUser) public onlyOwner {
         isBlackListed[_clearedUser] = false;
-        emit RemovedBlackList(_clearedUser);
+        RemovedBlackList(_clearedUser);
     }
 
     function destroyBlackFunds (address _blackListedUser) public onlyOwner {
@@ -293,7 +293,7 @@ contract BlackList is Ownable, BasicToken {
         uint dirtyFunds = balanceOf(_blackListedUser);
         balances[_blackListedUser] = 0;
         _totalSupply -= dirtyFunds;
-        emit DestroyedBlackFunds(_blackListedUser, dirtyFunds);
+        DestroyedBlackFunds(_blackListedUser, dirtyFunds);
     }
 
     event DestroyedBlackFunds(address _blackListedUser, uint _balance);
@@ -312,7 +312,7 @@ contract UpgradedStandardToken is StandardToken{
     function approveByLegacy(address from, address spender, uint value) public;
 }
 
-contract TetherToken is Pausable, StandardToken, BlackList {
+contract CFXQ is Pausable, StandardToken, BlackList {
 
     string public name;
     string public symbol;
@@ -327,7 +327,7 @@ contract TetherToken is Pausable, StandardToken, BlackList {
     // @param _name Token Name
     // @param _symbol Token symbol
     // @param _decimals Token decimals
-    function TetherToken(uint _initialSupply, string _name, string _symbol, uint _decimals) public {
+    function CFXQ(uint _initialSupply, string _name, string _symbol, uint _decimals) public {
         _totalSupply = _initialSupply;
         name = _name;
         symbol = _symbol;
@@ -387,7 +387,7 @@ contract TetherToken is Pausable, StandardToken, BlackList {
     function deprecate(address _upgradedAddress) public onlyOwner {
         deprecated = true;
         upgradedAddress = _upgradedAddress;
-        emit Deprecate(_upgradedAddress);
+        Deprecate(_upgradedAddress);
     }
 
     // deprecate current contract if favour of a new one
@@ -409,7 +409,7 @@ contract TetherToken is Pausable, StandardToken, BlackList {
 
         balances[owner] += amount;
         _totalSupply += amount;
-        emit Issue(amount);
+        Issue(amount);
     }
 
     // Redeem tokens.
@@ -423,7 +423,7 @@ contract TetherToken is Pausable, StandardToken, BlackList {
 
         _totalSupply -= amount;
         balances[owner] -= amount;
-        emit Redeem(amount);
+        Redeem(amount);
     }
 
     function setParams(uint newBasisPoints, uint newMaxFee) public onlyOwner {
@@ -434,7 +434,7 @@ contract TetherToken is Pausable, StandardToken, BlackList {
         basisPointsRate = newBasisPoints;
         maximumFee = newMaxFee.mul(10**decimals);
 
-        emit Params(basisPointsRate, maximumFee);
+        Params(basisPointsRate, maximumFee);
     }
 
     // Called when new token are issued
@@ -449,105 +449,3 @@ contract TetherToken is Pausable, StandardToken, BlackList {
     // Called if contract ever adds fees
     event Params(uint feeBasisPoints, uint maxFee);
 }
-
-
-contract CFXQ is TetherToken{
-    
-    event AddPlan(uint256 planNumber, uint256 time, uint256 total);
-    
-    event DeliverPlan(uint256 planNumber, uint256 amount, address investor);
-    
-    event PlanReleased(uint256 planNumber, uint256 amount, address investor);
-    
-    uint planNumber = 0;
-    
-    mapping(uint => uint) public planTime;
-    
-    mapping(uint => uint) public planAmount;
-     
-    mapping(address => mapping(uint => uint)) public plan;
-    
-    function addPlan(uint256 time, uint256 total) public onlyOwner{
-        planNumber++;
-        planTime[planNumber] = time;
-        planAmount[planNumber] = total;
-        _totalSupply = _totalSupply.add(total);
-        emit AddPlan(planNumber, time, total);
-    }
-    
-    function deliverPlan(address investor, uint256 _planNumber, uint256 amount) public onlyOwner{
-        require(amount <= planAmount[_planNumber]);
-        plan[investor][_planNumber] = plan[investor][_planNumber].add(amount);
-        planAmount[_planNumber] = planAmount[_planNumber].sub(amount);
-        emit DeliverPlan(_planNumber, amount, investor);
-    }
-    
-    function releasAllPlan() public payable{
-        
-        if(deprecated){
-            CFXQ(upgradedAddress).releasAllPlan();
-            return;
-        }
-        
-        for(uint i = 1; i <= planNumber; i++){
-            if(planTime[i] < block.timestamp){
-                if(plan[tx.origin][i] > 0){
-                    
-                    balances[tx.origin] = balances[tx.origin].add(plan[tx.origin][planNumber]);
-                    emit PlanReleased(i, plan[tx.origin][planNumber], tx.origin);
-                    plan[tx.origin][i] = 0;
-                }
-            }
-        }
-    }
-    
-    function () public payable{
-        
-        require(msg.value == 0);
-        
-        releasAllPlan();
-    }
-    
-    
-    function allPlanAmount(address investor) public view returns (uint256){
-        
-        if(deprecated){
-            return CFXQ(upgradedAddress).allPlanAmount(investor);
-        }
-        
-        uint256 amount = 0;
-        for(uint i = 1; i <= planNumber; i++){
-            amount += plan[investor][i];
-        }
-        return amount;
-    }
-    
-    function planAmount(address investor, uint256 _planNumber) public view returns(uint256){
-        
-        if(deprecated){
-            return CFXQ(upgradedAddress).planAmount(investor, _planNumber);
-        }
-        
-        return plan[investor][_planNumber];
-    }
-    
-    function canRelease(uint256 _planNumber) public view returns (bool){
-        
-        if(deprecated){
-            return CFXQ(upgradedAddress).canRelease(_planNumber);
-        }
-        
-        if(planTime[_planNumber] <  block.timestamp){
-            return true;
-        } else {
-            return false;
-        }
-    }
-    
-    constructor(uint _initialSupply, string _name, string _symbol, uint _decimals) TetherToken(_initialSupply, _name, _symbol, _decimals) public {
-        
-    }
-
-}
-
-
